@@ -1,0 +1,17 @@
+---
+description: Restrições do projeto (actions)
+alwaysApply: true
+---
+
+# Restrições do projeto (`actions`)
+
+- Escopo: **reusable workflows** de CI/CD (`workflow_call`). Callers nos repos consumidores.
+- `deploy` sincroniza o Secret Kubernetes a partir de: org secrets `DD_API_KEY` + `SERVICE_AUTH_KEY`, e (opcional) um JSON por serviço no Secret Manager. Não versionar valores de secret no Git.
+- Contrato JSON SM (chaves literais ASP.NET): `ConnectionStrings__DefaultConnection`; `Jwt__SigningKeyPem` só em `autenticacao` quando existir.
+- Sem `tf-apply` / `tf-destroy` para o `infra-bootstrap`.
+- Sem WIF neste repo (`actions` fora de `ci_repositories`).
+- `building-blocks` não consome estes workflows.
+- README autocontido: sem referências a pastas fora do Git da org.
+- Pin Terraform alinhado aos repos de infra (`1.16.1` até haver mudança deliberada).
+- Namespace K8s padrão do deploy: `fiap-x`.
+- Proibida a string que combina o produto com “videos” em camel/kebab/snake.
