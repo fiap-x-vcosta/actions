@@ -24,7 +24,8 @@ GKE, Cloud SQL e LBs só sobem na janela de demo. Não há apply/deploy em todo 
 | [`ci-terraform.yml`](.github/workflows/ci-terraform.yml) | `fmt` / `validate`; `plan` opcional em PR |
 | [`build-push.yml`](.github/workflows/build-push.yml) | Build e push da imagem no Artifact Registry |
 | [`deploy.yml`](.github/workflows/deploy.yml) | Deploy no GKE (manifests em `k8s/`, Secret, rollout, smoke HTTPS) |
-| `tf-apply` / `tf-destroy` | Apply/destroy manuais via caller `workflow_dispatch` *(PR seguinte)* |
+| [`tf-apply.yml`](.github/workflows/tf-apply.yml) | `terraform apply` manual (`workflow_dispatch` no caller) |
+| [`tf-destroy.yml`](.github/workflows/tf-destroy.yml) | `terraform destroy` manual (`workflow_dispatch` no caller) |
 
 Pin padrão do Terraform: **1.16.1**. Working directory padrão: **`terraform`**. Namespace K8s padrão do deploy: **`fiap-x`**.
 
@@ -152,6 +153,50 @@ jobs:
       SERVICE_AUTH_KEY: ${{ secrets.SERVICE_AUTH_KEY }}
 ```
 
+### tf-apply / tf-destroy
+
+A **concurrency fica no caller** (não no reusable). O mesmo grupo no caller e no reusable deadlocka o job `uses:` — o reusable nunca sobe.
+
+`infra-bootstrap` **não** consome estes workflows (apply local por owner). Passos extras do `infra-k8s` (Gateway pós-apply, cleanup pré-destroy) ficam em **jobs do caller**, cobertos pelo mesmo `concurrency` do workflow.
+
+```yaml
+name: tf-apply
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-infra-events
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    uses: fiap-x-vcosta/actions/.github/workflows/tf-apply.yml@main
+```
+
+```yaml
+name: tf-destroy
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-infra-events
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  destroy:
+    uses: fiap-x-vcosta/actions/.github/workflows/tf-destroy.yml@main
+```
+
 ## Inputs principais
 
 ### `ci-dotnet`
@@ -168,14 +213,16 @@ jobs:
 
 Secret: `SONAR_TOKEN`.
 
-### `ci-terraform`
+### `ci-terraform` / `tf-apply` / `tf-destroy`
 
 | Input | Default | Notas |
 |-------|---------|-------|
 | `terraform_version` | `1.16.1` | |
 | `working_directory` | `terraform` | |
-| `run_plan` | `true` | só em `pull_request` |
+| `run_plan` | `true` | só `ci-terraform`, e só em `pull_request` |
 | `require_k8s_vars` | `false` | checa projeto/região/cluster e exporta `TF_VAR_*` |
+
+Concurrency de apply/destroy: declarar no workflow caller, não nestes reusables.
 
 ### `build-push` / `deploy`
 
